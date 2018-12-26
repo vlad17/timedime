@@ -7,6 +7,7 @@ See `setup.py` for necessary python packages. Requires a linux x64 box.
 ```
 conda create -y -n timedime-env python=3.6
 source activate timedime-env
+pip install --no-cache-dir --editable .
 ```
 
 ## Scripts
@@ -20,5 +21,8 @@ All scripts are available in `scripts/`, and should be run from the repo root in
 
 ## Example
 
-All mainfiles are documented. Run `python timedime/main/*.py --help` for any `*` for details.
+All mainfiles are documented. Run `python -m timedime.main.* --help` for any `*` for details.
 
+```
+python -m timedime.main.ingest --help
+```
