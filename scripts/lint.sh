@@ -5,12 +5,12 @@
 #   # Lint timedime by default.
 #   ./scripts/lint.sh
 #   # Lint specific files.
-#   ./scripts/lint.sh asn4sql/somefile/*.py
+#   ./scripts/lint.sh timedime/somefile/*.py
 
 set -euo pipefail
 
 lint() {
-    pylint "$@"
+    flake8 "$@"
 }
 
 main() {

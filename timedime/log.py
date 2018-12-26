@@ -24,12 +24,14 @@ And then from any other file, run something this:
 """
 
 import inspect
-import os
 import logging
-from absl import flags
+import os
 from datetime import datetime
 
-flags.DEFINE_boolean('verbose', True, 'whether to activate logging')
+from absl import flags
+
+flags.DEFINE_boolean("verbose", True, "whether to activate logging")
+
 
 class _StackCrawlingFormatter(logging.Formatter):
     """
@@ -44,6 +46,7 @@ class _StackCrawlingFormatter(logging.Formatter):
     number. Simply set the `pathname` and `lineno` attributes of the formatter
     before you call `log.debug`. See `debug` below for an example.
     """
+
     def __init__(self, format_str):
         super().__init__(format_str)
         self.pathname = None
@@ -52,14 +55,13 @@ class _StackCrawlingFormatter(logging.Formatter):
     def format(self, record):
         s = super().format(record)
         if self.pathname is not None:
-            s = s.replace('{pathname}', self.pathname)
+            s = s.replace("{pathname}", self.pathname)
         if self.lineno is not None:
-            s = s.replace('{lineno}', str(self.lineno))
-        if '{fmttime}' in s:
+            s = s.replace("{lineno}", str(self.lineno))
+        if "{fmttime}" in s:
             tztime = datetime.now().astimezone()
-            fmttime = tztime.strftime(
-                "%Y-%m-%d %H:%M:%S %Z")
-            s = s.replace('{fmttime}', fmttime)
+            fmttime = tztime.strftime("%Y-%m-%d %H:%M:%S %Z")
+            s = s.replace("{fmttime}", fmttime)
         return s
 
 
@@ -84,12 +86,13 @@ def debug(s, *args):
     previous_frame = inspect.currentframe().f_back
     try:
         pathname, lineno, _, _, _ = inspect.getframeinfo(previous_frame)
-    except Exception: # pylint: disable=broad-except
-        pathname = '<UNKNOWN-FILE>.py'
+    except Exception:  # pylint: disable=broad-except
+        pathname = "<UNKNOWN-FILE>.py"
         lineno = 0
     _FORMATTER.pathname = _clean_path(pathname)
     _FORMATTER.lineno = lineno
     _LOGGER.debug(s.format(*args))
+
 
 def _clean_path(path):
     """
