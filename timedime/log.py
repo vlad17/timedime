@@ -26,7 +26,10 @@ And then from any other file, run something this:
 import inspect
 import os
 import logging
+from absl import flags
 from datetime import datetime
+
+flags.DEFINE_boolean('verbose', True, 'whether to activate logging')
 
 class _StackCrawlingFormatter(logging.Formatter):
     """
@@ -65,13 +68,13 @@ _FORMAT_STRING = "[{fmttime} {pathname}:{lineno}] %(message)s"
 _FORMATTER = _StackCrawlingFormatter(_FORMAT_STRING)
 
 
-def init(verbose):
+def init():
     """Initialize the logger."""
     handler = logging.StreamHandler()
     handler.setFormatter(_FORMATTER)
     _LOGGER.propagate = False
     _LOGGER.addHandler(handler)
-    if verbose:
+    if flags.FLAGS.verbose:
         _LOGGER.setLevel(logging.DEBUG)
 
 

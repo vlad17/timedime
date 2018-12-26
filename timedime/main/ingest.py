@@ -38,7 +38,6 @@ flags.DEFINE_string('begin', None, 'YYYY-MM-DD specification for begin of '
 flags.mark_flag_as_required('begin')
 flags.DEFINE_string('end', 'now', 'YYYY-MM-DD specification for begin of '
                     + 'fetch range (end of day)')
-flags.DEFINE_boolean('verbose', True, 'whether to activate logging')
 flags.DEFINE_string('dst', './data/new.pkl',
                     'path in which to save ingested input')
 flags.DEFINE_string('credentials', '~/credentials.json',
@@ -140,8 +139,8 @@ def _add_event(event, events):
     summary = remove_tags(raw_summary)
 
     events["raw_json"].append(event)
-    events["start"].append(start)
-    events["end"].append(end)
+    events["start"].append(start.astimezone(timezone.utc))
+    events["end"].append(end.astimezone(timezone.utc))
     events["duration_hours"].append(hrs)
     events["raw_summary"].append(raw_summary)
     events["event_id"].append(event["id"])
@@ -159,7 +158,7 @@ def remove_tags(summary):
     return summary.strip()
 
 def _main(_argv):
-    log.init(flags.FLAGS.verbose)
+    log.init()
     init_gcal_service()
 
     from_time = parse_date(flags.FLAGS.begin, start_of_day=True)
@@ -191,6 +190,8 @@ def _main(_argv):
               len(events["event_id"]), pretty_date(from_time), pretty_date(to_time))
 
     df = pd.DataFrame(events)
+    df.start = pd.to_datetime(df.start)
+    df.end = pd.to_datetime(df.end)
     assert df.event_id.nunique() == len(df)
     df = df.set_index('event_id')
 
@@ -283,12 +284,10 @@ def _main(_argv):
     for tag in heapq.nlargest(3, all_tags, key=taghrs.get):
         print(' ' * 8 + '{:<15s}: {:6.1f}'.format(tag, taghrs[tag]))
 
-
-    saveloc = os.path.expanduser(flags.FLAGS.dst)
     log.debug('writing loaded data to {}{}',
-              saveloc,
-              ' (WARNING: file will be overwritten)' if os.path.exists(saveloc) else '')
-    df.to_pickle(saveloc)
+              flags.FLAGS.dst,
+              ' (WARNING: file will be overwritten)' if os.path.exists(flags.FLAGS.dst) else '')
+    df.to_pickle(flags.FLAGS.dst)
 
 if __name__ == '__main__':
     app.run(_main)
