@@ -1,5 +1,20 @@
 # timedime
 
+This module, `timedime`, helps you keep track of where your spending your time.
+It's pretty specific to how I've set up your calendar. You'll likely not get much use
+out of this unless you use your calendar the same way.
+
+For *literally* every hour of your day, record what you're doing and tag it appropriately.
+
+These scripts only look at the `summary` field, which is specified by the "Event Title" field
+in the calendar application. If tag your events with square bracket tags, then this package
+can do a little bit of analysis for you.
+
+For instance, you might create an event called `[health] sleep` from 11PM to 7AM, followed by
+`[transportation] go to work` from 7AM to 8AM, and then another one called
+`[work] [do some coding] new feature push` from 8AM to 5PM. This can handle multiple tags
+and tags with spaces in them. Just don't do dumb shit like `[ [] i ] do Q][A`.
+
 ## Setup
 
 See `setup.py` for necessary python packages. Requires a linux x64 box.

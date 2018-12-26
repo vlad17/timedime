@@ -274,9 +274,15 @@ def _main(_argv):
     edf = df.join(exploded)
 
     tagcounts = {tag: edf[tag].mean() for tag in all_tags}
-    print('    most popular tags')
+    print('    most popular tags by event count')
     for tag in heapq.nlargest(3, all_tags, key=tagcounts.get):
         print(' ' * 8 + '{:<15s}: {:.1%}'.format(tag, tagcounts[tag]))
+
+    taghrs = {tag: (edf[tag] * edf.duration_hours).sum() for tag in all_tags}
+    print('    most popular tags by event duration')
+    for tag in heapq.nlargest(3, all_tags, key=taghrs.get):
+        print(' ' * 8 + '{:<15s}: {:6.1f}'.format(tag, taghrs[tag]))
+
 
     saveloc = os.path.expanduser(flags.FLAGS.dst)
     log.debug('writing loaded data to {}{}',
