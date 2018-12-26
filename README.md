@@ -41,3 +41,11 @@ All mainfiles are documented. Run `python -m timedime.main.* --help` for any `*`
 ```
 python -m timedime.main.ingest --help
 ```
+
+## Dev Info
+
+To update deps:
+
+```
+ pip freeze | awk -F '==' "{print \"'\"\$1\">=\"\$2\"',\"}" | xclip -in -selection clipboard # then paste in setup.py
+```
