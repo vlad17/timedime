@@ -11,8 +11,8 @@ of the data.
 
 import heapq
 import itertools
+from functools import partial
 import logging
-import operator
 import os
 import re
 import warnings
@@ -29,6 +29,10 @@ from httplib2 import Http
 from oauth2client import client, file, tools
 
 from .. import log
+from ..interval import find_intervals
+from ..format_utils import indented_list
+from ..utils import splat, compose
+
 
 flags.DEFINE_string(
     "begin",
@@ -55,11 +59,6 @@ def hrs_bw(begin, end):
     the beginning and the end events.
     """
     return (end - begin).total_seconds() / 3600
-
-
-def splat(f):
-    return lambda x: f(*x)
-
 
 def parse_date(datestr, start_of_day):
     """
@@ -235,96 +234,61 @@ def _main(_argv):
 
     df = df.dropna(subset=["start", "end"])
 
-    from_time = min(df.start.min().to_pydatetime(), from_time)
-    to_time = max(df.end.max().to_pydatetime(), to_time)
-    tot_hrs = hrs_bw(from_time, to_time)
+    from_time = from_time
+    to_time = to_time
+    range_hrs = hrs_bw(from_time, to_time)
+    tot_hrs = df.duration_hours.sum()
+
     print("DIAGNOSTICS")
     print()
-    print("expanded range for overlapping events")
-    print("    begin  :", pretty_date(from_time))
-    print("    end    :", pretty_date(to_time))
-    print("    tot hrs: {:.1f}".format(tot_hrs))
+    print(indented_list(
+        title="expanded range for overlapping events",
+        pairs=[
+            ("begin", pretty_date(from_time)),
+            ("end", pretty_date(to_time)),
+            ("range hrs", "{:.1f}".format(range_hrs)),
+            ("tot hrs", "{:.1f}".format(tot_hrs)
+             + " (sum of all event durations)")]))
 
-    # a more efficient alternative could be to use flatMap
-    # https://stackoverflow.com/questions/31080258
-    endpoints = list(
-        itertools.chain.from_iterable(
-            (
-                [
-                    SimpleNamespace(
-                        event_id=idx,
-                        time=row.start.to_pydatetime(),
-                        start=True,
-                    ),
-                    SimpleNamespace(
-                        event_id=idx, time=row.end.to_pydatetime(), start=False
-                    ),
-                ]
-                for idx, row in df.iterrows()
-            )
-        )
-    )
-    # crucially, starts first!
-    endpoints.sort(key=lambda e: (e.time, not e.start))
-
-    # O(n) algorithm to find maximal contiguous uncovered/doubled
-    # intervals.
-
-    uncovered = []
-    overlaps = []
-    stack_height = 0
-    latest_active = from_time
-    earliest_overlap = None
-    for endpoint in endpoints:
-        if endpoint.start:
-            if stack_height == 0 and latest_active < endpoint.time:
-                uncovered.append((latest_active, endpoint.time))
-            elif stack_height == 1:
-                earliest_overlap = endpoint.time
-            stack_height += 1
-        else:
-            if stack_height == 1:
-                latest_active = endpoint.time
-            elif stack_height == 2:
-                overlaps.append((earliest_overlap, endpoint.time))
-            stack_height -= 1
-    if (
-        stack_height == 0
-        and endpoints
-        and not endpoint.start
-        and endpoint.time < to_time
-    ):
-        uncovered.append((endpoint.time, to_time))
-
-    overlaps = list(itertools.filterfalse(splat(operator.eq), overlaps))
-    # uncovered should have no empty intervals due to the sort
+    uncovered, overlaps = find_intervals(df, from_time, to_time)
 
     uncovered_hrs = sum(map(splat(hrs_bw), uncovered))
     overlap_hrs = sum(map(splat(hrs_bw), overlaps))
 
     print()
-    print("interval coverage analysis")
-    print(
-        "    overlap hrs  : {:.1f} ({:.1%})".format(
-            overlap_hrs, overlap_hrs / tot_hrs
-        )
-    )
-    print(
-        "    uncovered hrs: {:.1f} ({:.1%})".format(
-            uncovered_hrs, uncovered_hrs / tot_hrs
-        )
-    )
-    print("    top overlapping intervals")
-    for begin, end in heapq.nlargest(3, overlaps, key=splat(hrs_bw)):
-        print("        {} - {}".format(pretty_date(begin), pretty_date(end)))
-    print("    top uncovered intervals")
-    for begin, end in heapq.nlargest(3, uncovered, key=splat(hrs_bw)):
-        print("        {} - {}".format(pretty_date(begin), pretty_date(end)))
+    print(indented_list(
+        title="interval coverage analysis",
+        pairs=[
+            ("overlap hrs", "{:.1f} ({:.1%})".format(
+            overlap_hrs, overlap_hrs / range_hrs
+            )),
+            ("uncovered hrs", "{:.1f} ({:.1%})".format(
+                uncovered_hrs, uncovered_hrs / range_hrs
+                ))]))
+    print(indented_list(
+        title="top overlapping intervals",
+        indentation_level=1,
+        singles=map(
+            compose(
+                splat('{} - {}'.format),
+                partial(map, pretty_date)),
+            heapq.nlargest(3, overlaps, key=splat(hrs_bw)))))
+    print(indented_list(
+        title="top uncovered intervals",
+        indentation_level=1,
+        singles=map(
+            compose(
+                splat('{} - {}'.format),
+                partial(map, pretty_date)),
+            heapq.nlargest(3, uncovered, key=splat(hrs_bw)))))
+
+    all_tags = set().union(*df.tags)
 
     print()
-    print("tag quantity analysis")
-    all_tags = set().union(*df.tags)
-    print("    num unique tags:", len(all_tags))
+    print(indented_list(
+        title="tag quantity analysis",
+        pairs=[("num unique tags", len(all_tags))],
+    ))
 
     exploded = df.tags.apply(lambda x: pd.Series({tag: True for tag in x}))
     exploded = exploded.fillna(False)
@@ -332,14 +296,20 @@ def _main(_argv):
     edf = df.join(exploded)
 
     tagcounts = {tag: edf[tag].mean() for tag in all_tags}
-    print("    most popular tags by event count")
-    for tag in heapq.nlargest(3, all_tags, key=tagcounts.get):
-        print(" " * 8 + "{:<15s}: {:.1%}".format(tag, tagcounts[tag]))
+
+    print(indented_list(
+        title="most popular tags by event count",
+        indentation_level=1,
+        pairs=[(tag, "{:.1%}".format(tagcounts[tag])) for tag in
+               heapq.nlargest(3, all_tags, key=tagcounts.get)]
+        ))
 
     taghrs = {tag: (edf[tag] * edf.duration_hours).sum() for tag in all_tags}
-    print("    most popular tags by event duration")
-    for tag in heapq.nlargest(3, all_tags, key=taghrs.get):
-        print(" " * 8 + "{:<15s}: {:6.1f}".format(tag, taghrs[tag]))
+    print(indented_list(
+        title="most popular tags by event duration",
+        indentation_level=1,
+        pairs=[(tag, "{:6.1f}".format(taghrs[tag])) for tag in
+               heapq.nlargest(3, all_tags, key=taghrs.get)]))
 
     log.debug(
         "writing loaded data to {}{}",
