@@ -102,3 +102,22 @@ def find_intervals(df, from_time, to_time):
     uncovered = list(map(_trim, uncovered))
 
     return uncovered, overlaps
+
+def filter_range(df, from_time, to_time):
+    """
+    Filter a dataframe of intervals with start and end members
+    that are not intersecting with the given interval
+    between the from and to times, inclusive.
+
+    The pandas dataframe should contain pandas timestamps
+    and the from/to times should be python datetime objects.
+    """
+    ix = (df.end <= from_time) | (df.start >= to_time)
+    return df.loc[~ix]
+
+def hrs_bw(begin, end):
+    """
+    Returns the floating point number of hours between
+    the beginning and the end events.
+    """
+    return (end - begin).total_seconds() / 3600

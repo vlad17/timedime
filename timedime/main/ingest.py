@@ -17,7 +17,7 @@ import os
 import re
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import timezone
 from types import SimpleNamespace
 
 import dateutil.parser as parser
@@ -29,9 +29,10 @@ from httplib2 import Http
 from oauth2client import client, file, tools
 
 from .. import log
-from ..interval import find_intervals
+from ..tags import explode
+from ..interval import find_intervals, hrs_bw
 from ..format_utils import indented_list
-from ..utils import splat, compose
+from ..utils import splat, compose, parse_date, pretty_date
 
 
 flags.DEFINE_string(
@@ -51,44 +52,6 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "credentials", "~/credentials.json", "gcal API credentials"
 )
-
-
-def hrs_bw(begin, end):
-    """
-    Returns the floating point number of hours between
-    the beginning and the end events.
-    """
-    return (end - begin).total_seconds() / 3600
-
-def parse_date(datestr, start_of_day):
-    """
-    Converts a date YYYY-MM-DD into the datetime associated
-    with the start of the day if start_of_day (else the last second of
-    that day).
-
-    The special value "now" is also allowed, in which case the current
-    timestamp is returned.
-
-    All times UTC, but start of day / end of day are relative to the
-    current timezone.
-    """
-    if datestr == "now":
-        return datetime.now(timezone.utc)
-    parsed = datetime.strptime(datestr, "%Y-%m-%d")
-    parsed = parsed.astimezone()
-    if start_of_day:
-        return parsed.astimezone(timezone.utc)
-    parsed += timedelta(hours=23, minutes=59, seconds=99)
-    return parsed.astimezone(timezone.utc)
-
-
-def pretty_date(dt):
-    """
-    Formats a datetime instance, which can be none, in the local TZ
-    """
-    if not dt:
-        return "<unk date>"
-    return dt.astimezone().strftime("%Y-%m-%d %I:%M%p %Z")
 
 
 # Modifying this scope would require regenerating the gcal creds
@@ -181,7 +144,7 @@ def _main(_argv):
     init_gcal_service()
 
     from_time = parse_date(flags.FLAGS.begin, start_of_day=True)
-    to_time = parse_date(flags.FLAGS.end, start_of_day=True)
+    to_time = parse_date(flags.FLAGS.end, start_of_day=False)
 
     log.debug(
         "fetching events overlapping with time range {} - {}",
@@ -290,10 +253,7 @@ def _main(_argv):
         pairs=[("num unique tags", len(all_tags))],
     ))
 
-    exploded = df.tags.apply(lambda x: pd.Series({tag: True for tag in x}))
-    exploded = exploded.fillna(False)
-
-    edf = df.join(exploded)
+    edf = df.join(explode(df))
 
     tagcounts = {tag: edf[tag].mean() for tag in all_tags}
 
