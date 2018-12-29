@@ -163,7 +163,8 @@ def context_loop(df, ef, min_support_show, max_values):
             context.pop()
             continue
         assert isinstance(result, int), result
-        if ranked_tags[result - 1] == '<unk>':
+        if ranked_tags[result - 1] not in ef.columns:
+            print('---> cannot break this down further')
             continue
         context.append(ranked_tags[result - 1])
 

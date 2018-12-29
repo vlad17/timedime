@@ -34,5 +34,8 @@ def expand_explode(cdf, cef):
     summary_gb = cdf.summary.groupby(cdf.summary).size()
     summaries = summary_gb[summary_gb > 1].index
     for summary in summaries:
+        if not summary:
+            cef['<empty>'] = cdf.summary == ''
+            continue
         cef[summary] = cdf.summary == summary
     return cef
