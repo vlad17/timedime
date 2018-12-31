@@ -65,7 +65,7 @@ class _StackCrawlingFormatter(logging.Formatter):
         return s
 
 
-_LOGGER = logging.getLogger("mve")
+_LOGGER = logging.getLogger(__package__)
 _FORMAT_STRING = "[{fmttime} {pathname}:{lineno}] %(message)s"
 _FORMATTER = _StackCrawlingFormatter(_FORMAT_STRING)
 
