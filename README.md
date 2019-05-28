@@ -79,7 +79,7 @@ python -m timefly.main.digest --begin 2019-05-01 --min_support 0.01 --end 2019-0
 >   7.7%  answer questions
 >   6.6%  recruiting
 >   19.2% other
-> 9.6%  research
+> 9.6%  [redacted]
 > 4.5%  [redacted]
 > 4.1%  fun
 >   36.7% tv
