@@ -20,26 +20,12 @@ def explode(df, min_support_count=None):
     # TODO: to avoid actually exploding memory, we could
     # do one tag at a time and explicitly construct the sparse vector.
     # probably need to switch from pandas to a dict.
+
+    # just treat the summary as a tag itself too
+
+    df = df.copy()
+    df["tags"] = df[["tags", "summary"]].apply(lambda x: x.tags.union(frozenset([x.summary])), axis=1)
+
     exploded = df.tags.apply(lambda x: pd.Series({tag: True for tag in x}))
     exploded = exploded.fillna(False)
     return exploded
-
-
-# TODO: support-based exploding for descriptions above
-# TODO: note, we probably want to re-explode at every context
-
-
-def expand_explode(cdf, cef):
-    """
-    Augment an exploded df, cef, with summaries that appear
-    more than once in the dataframe df.
-    """
-
-    summary_gb = cdf.summary.groupby(cdf.summary).size()
-    summaries = summary_gb[summary_gb > 1].index
-    for summary in summaries:
-        if not summary:
-            cef["<empty>"] = cdf.summary == ""
-            continue
-        cef[summary] = cdf.summary == summary
-    return cef

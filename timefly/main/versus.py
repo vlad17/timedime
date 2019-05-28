@@ -1,8 +1,9 @@
 """
-Compare two periods
+Compare two periods of time for changes in what you've done.
 """
 import sys
 
+from datetime import timedelta
 import numpy as np
 import pandas as pd
 from absl import app, flags
@@ -10,20 +11,20 @@ from absl import app, flags
 from .. import log
 from ..format_utils import indented_list
 from ..interval import filter_range, find_intervals, hrs_bw
-from ..tags import expand_explode, explode
+from ..tags import explode
 from ..utils import parse_date, pretty_date, splat
+
 
 flags.DEFINE_string(
     "running_events",
     "./data/running.pkl",
     "path pointing to the existing store of data, " "this need not exist",
 )
-flags.DEFINE_string(
-    "begin",
-    None,
-    "YYYY-MM-DD specification for begin of " + "fetch range (start of day)",
+flags.DEFINE_integer(
+    "window_days",
+    7,
+    "number of days to look back"
 )
-flags.mark_flag_as_required("begin")
 flags.DEFINE_string(
     "end",
     "now",
@@ -31,38 +32,47 @@ flags.DEFINE_string(
 )
 flags.DEFINE_float(
     "min_support",
-    0.05,
+    0.01,
     "Minimum support, inclusive, necessary for a category to be included"
-    " in the drill-down view",
+    " in the view",
     lower_bound=0,
     upper_bound=1,
 )
 
-HOURS_WIDTH = 5
-
 def format_percent(x):
     return '{:3.1%}'.format(x)
+
+HOURS_WIDTH = 5
 
 def format_hours(x):
     return ('{:' + str(HOURS_WIDTH) + '.1f}').format(x)
 
+
 def _main(_argv):
-    log.init()
     df = pd.read_pickle(flags.FLAGS.running_events)
 
-    from_time = parse_date(flags.FLAGS.begin, start_of_day=True)
     to_time = parse_date(flags.FLAGS.end, start_of_day=False)
+    mid_time = to_time - timedelta(days=flags.FLAGS.window_days)
+    start_time = mid_time - timedelta(days=flags.FLAGS.window_days)
 
-    df = filter_range(df, from_time, to_time)
+    prev_df = filter_range(df, start_time, mid_time)
+    next_df = filter_range(df, mid_time, to_time)
 
     print(
-        "events in range {} - {}".format(
-        pretty_date(from_time),
+        "{} events in range {} - {}".format(
+            len(prev_df),
+        pretty_date(start_time),
+        pretty_date(mid_time),
+    ))
+    print(
+        "{} events in range {} - {}".format(
+            len(next_df),
+        pretty_date(mid_time),
         pretty_date(to_time),
     ))
-    uncovered, _ = find_intervals(df, from_time, to_time)
+    uncovered, _ = find_intervals(df, start_time, to_time)
     uncovered_hrs = sum(map(splat(hrs_bw), uncovered))
-    range_hrs = hrs_bw(from_time, to_time)
+    range_hrs = hrs_bw(start_time, to_time)
 
     ndigits = len(str(int(range_hrs)))
     global HOURS_WIDTH
@@ -75,92 +85,73 @@ def _main(_argv):
           format_percent(uncovered_hrs / range_hrs),
           "total)")
 
-    ef = explode(df)
-    print(
-        "found {} tags in range".format(len(ef.columns))
-    )
+    nef = explode(next_df)
+    pef = explode(prev_df)
 
-    print_context(df, ef, [], 1.0)
-
-def print_context(df, ef, context, frac):
-
-    cdf, cef = get_context_df(df, ef, context)
-    if cdf is None and cef is None:
-        # base case
-        return
-
-    cef = expand_explode(cdf, cef)
-
-    min_support = flags.FLAGS.min_support / frac
-    max_values = int(np.ceil(1 / min_support))
-    ranked_tags, percentages = rank_by_popular_tag(
-        cdf, cef, min_support, max_values
-    )
-
-    ranked_tags_print = list(ranked_tags)
-    percentages_print = list(percentages)
-
-    if ranked_tags_print == ["<unk>"]:
-        return
+    for c in nef.columns:
+        if c not in pef.columns:
+            pef[c] = np.zeros(len(pef), dtype=bool)
 
 
-    if len(percentages):
-        ranked_tags_print.append("other")
-        percentages_print.append(1 - percentages.sum())
+    for c in pef.columns:
+        if c not in nef.columns:
+            nef[c] = np.zeros(len(nef), dtype=bool)
 
-    percentages_print = [
-        '{:.1%}'.format(p)
-        for p in percentages_print]
+    print('from prev to next, units are hours')
 
-    lines = indented_list(
-        pairs=zip(percentages_print, ranked_tags_print),
-        join=False,
-        sep=' ',
-        indentation_level=len(context))
+    ptot = prev_df.duration_hours.sum()
+    ntot = next_df.duration_hours.sum()
 
-    for line, percent, tag in zip(lines, percentages, ranked_tags):
-        print(line)
-        if percent >= flags.FLAGS.min_support:
-            print_context(df, ef, context + [tag], frac * percent)
+    # Yes, this can be made much more efficient by caching 'x'
+    # and then incrementally updating it instead of removing rows
+    # associated with tags and restarting
+    #
+    # but completion > speed
 
-    if len(percentages):
-        print(lines[-1])
+    tot = 0 # here all incremental changes are mutex
+    # (note how we're excerpting rows and keeping ptot, ntot the same)
 
-def get_context_df(df, ef, context):
-    if any(c not in ef.columns for c in context):
-        # one of the tags was a description; short circuit
-        return None, None
-    is_in_context = ef[context].prod(axis=1).astype(bool)
-    df = df.loc[is_in_context]
-    ef = ef.loc[is_in_context]
-    ef = ef.drop(columns=context)
-    sef = ef.sum(axis=0)
-    ef.drop(columns=sef[sef == 0].index, inplace=True)
-    return df, ef
+    while True:
 
-def rank_by_popular_tag(df, ef, min_support, max_values):
-    # this could be done all-sparse, but pandas flips to dense
-    # frequently and this needs a delicate second pass for that first
-    supports = ef.mean(axis=0)
-    cols = list(ef.columns)
-    cols.sort(key=lambda x: supports.at[x], reverse=True)
-    ef = ef.loc[:, cols]
-    ef = ef.to_dense().replace(False, np.nan)
-    ef = ef * np.arange(1, len(cols) + 1, dtype=int)
-    ef = ef.min(axis=1)
-    ef = ef.fillna(0).astype(int)
-    ef = ef.replace(list(range(len(cols) + 1)), ["<unk>"] + cols)
+        jdf = pd.concat([prev_df, next_df])
 
-    # count hrs
-    hrs_by_tag = df.duration_hours.groupby(ef).sum()
+        s = jdf.apply(lambda x: pd.Series(list(x["tags"]) + [x["summary"]]),axis=1).stack().reset_index(level=1, drop=True)
+        s.name='tag'
+        singles = jdf.drop('tags', axis=1).join(s)
 
-    percent_by_tag = hrs_by_tag / hrs_by_tag.sum()
-    percent_by_tag = percent_by_tag[percent_by_tag >= min_support]
-    percent_by_tag.sort_values(ascending=False, inplace=True)
-    percent_by_tag = percent_by_tag.iloc[:max_values]
 
-    return percent_by_tag.index, percent_by_tag.values
 
+        sprev = singles[singles.index.isin(prev_df.index)]
+        snext = singles[singles.index.isin(next_df.index)]
+
+        gbp = sprev[["tag", "duration_hours"]].groupby('tag').sum() / ptot
+        gbn = snext[["tag", "duration_hours"]].groupby('tag').sum() / ntot
+
+        x = gbn.combine(-gbp, lambda x, y: x + y, fill_value=0)
+        x = x[x.index != '']
+
+        x = x.reset_index()
+        x["abs"] = np.abs(x["duration_hours"])
+        tag, hrs = x.sort_values('abs', ascending=False).iloc[0][["tag", "duration_hours"]]
+        tot += hrs
+        ptag = pef[tag]
+        ntag = nef[tag]
+
+        tag_prev_tot = prev_df[ptag].duration_hours.sum()
+        tag_next_tot = next_df[ntag].duration_hours.sum()
+
+        if abs(hrs) < flags.FLAGS.min_support:
+            break
+
+        print('{:+6.1%}'.format(hrs), tag, 'from', '{:4.1f} to {:4.1f}'.format(
+            tag_prev_tot, tag_next_tot))
+
+        prev_df = prev_df[~ptag]
+        next_df = next_df[~ntag]
+        pef = pef[~ptag]
+        nef = nef[~ntag]
+
+    print('{:+6.1%}'.format(hrs), 'other changes')
 
 if __name__ == "__main__":
     app.run(_main)

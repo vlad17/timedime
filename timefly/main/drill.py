@@ -11,7 +11,7 @@ from absl import app, flags
 from .. import log
 from ..format_utils import indented_list
 from ..interval import filter_range, find_intervals, hrs_bw
-from ..tags import expand_explode, explode
+from ..tags import explode
 from ..utils import parse_date, pretty_date, splat
 
 flags.DEFINE_string(
@@ -142,7 +142,6 @@ def context_loop(df, ef, min_support_show, max_values):
     while True:
         print()
         cdf, cef = get_context_df(df, ef, context)
-        cef = expand_explode(cdf, cef)
         pairs = get_context_info(df, ef, cdf, cef)
         print(indented_list(title="context {}".format(context), pairs=pairs))
         ranked_tags = []

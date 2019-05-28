@@ -92,3 +92,7 @@ python -m timefly.main.digest --begin 2019-05-18
 
 # python -m timefly.main.drill --begin 2019-05-01
 ```
+
+# TODO
+
+* move `rank_by_popular_tag` from `versus.py` into `tags.py`, reuse in `drill` and `digest`.

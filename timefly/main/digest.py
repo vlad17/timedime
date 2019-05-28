@@ -10,7 +10,7 @@ from absl import app, flags
 from .. import log
 from ..format_utils import indented_list
 from ..interval import filter_range, find_intervals, hrs_bw
-from ..tags import expand_explode, explode
+from ..tags import explode
 from ..utils import parse_date, pretty_date, splat
 
 flags.DEFINE_string(
@@ -37,10 +37,10 @@ flags.DEFINE_float(
     upper_bound=1,
 )
 
-HOURS_WIDTH = 5
-
 def format_percent(x):
     return '{:3.1%}'.format(x)
+
+HOURS_WIDTH = 5
 
 def format_hours(x):
     return ('{:' + str(HOURS_WIDTH) + '.1f}').format(x)
@@ -87,8 +87,6 @@ def print_context(df, ef, context, frac):
     if cdf is None and cef is None:
         # base case
         return
-
-    cef = expand_explode(cdf, cef)
 
     min_support = flags.FLAGS.min_support / frac
     max_values = int(np.ceil(1 / min_support))
