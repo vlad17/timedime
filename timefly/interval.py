@@ -3,11 +3,12 @@ Linear-time interval analysis -- find all the existing
 intersections and empty spaces in time intervals.
 """
 
-import operator
 import itertools
+import operator
 from types import SimpleNamespace
 
 from .utils import splat
+
 
 def find_intervals(df, from_time, to_time):
     """
@@ -103,6 +104,7 @@ def find_intervals(df, from_time, to_time):
 
     return uncovered, overlaps
 
+
 def filter_range(df, from_time, to_time):
     """
     Filter a dataframe of intervals with start and end members
@@ -114,6 +116,7 @@ def filter_range(df, from_time, to_time):
     """
     ix = (df.end <= from_time) | (df.start >= to_time)
     return df.loc[~ix]
+
 
 def hrs_bw(begin, end):
     """

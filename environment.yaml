@@ -1,0 +1,57 @@
+name: timefly-env
+channels:
+  - jeremyschlatter
+  - defaults
+dependencies:
+  - blas=1.0=mkl
+  - ca-certificates=2019.1.23=0
+  - certifi=2019.3.9=py36_0
+  - intel-openmp=2019.3=199
+  - libedit=3.1.20170329=h6b74fdf_2
+  - libffi=3.2.1=hd88cf55_4
+  - libgcc-ng=8.2.0=hdf63c60_1
+  - libgfortran-ng=7.3.0=hdf63c60_0
+  - libstdcxx-ng=8.2.0=hdf63c60_1
+  - mkl=2019.3=199
+  - mkl_fft=1.0.12=py36ha843d7b_0
+  - mkl_random=1.0.2=py36hd81dba3_0
+  - ncurses=6.1=he6710b0_1
+  - numpy-base=1.16.3=py36hde5b4d6_0
+  - openssl=1.1.1b=h7b6447c_1
+  - pip=18.1=py36_0
+  - python=3.6.7=h0371630_0
+  - readline=7.0=h7b6447c_5
+  - setuptools=40.6.3=py36_0
+  - sqlite=3.26.0=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - wheel=0.32.3=py36_0
+  - xz=5.2.4=h14c3975_4
+  - zlib=1.2.11=h7b6447c_3
+  - pip:
+    - absl-py==0.6.1
+    - astroid==2.1.0
+    - cachetools==3.0.0
+    - flake8==3.6.0
+    - google-api-python-client==1.7.7
+    - google-auth==1.6.2
+    - google-auth-httplib2==0.0.3
+    - httplib2==0.12.0
+    - isort==4.3.4
+    - lazy-object-proxy==1.3.1
+    - mccabe==0.6.1
+    - numpy==1.15.4
+    - oauth2client==4.1.3
+    - pandas==0.23.4
+    - pyasn1==0.4.4
+    - pyasn1-modules==0.2.2
+    - pycodestyle==2.4.0
+    - pyflakes==2.0.0
+    - python-dateutil==2.7.5
+    - pytz==2018.7
+    - rsa==4.0
+    - six==1.12.0
+    - typed-ast==1.1.1
+    - uritemplate==3.0.0
+    - wrapt==1.10.11
+prefix: /home/vlad/dev/anaconda3/envs/timefly-env
+

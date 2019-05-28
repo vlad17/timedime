@@ -4,15 +4,15 @@ a specified date range.
 """
 import sys
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from absl import app, flags
 
 from .. import log
-from ..tags import explode, expand_explode
-from ..interval import filter_range, find_intervals, hrs_bw
 from ..format_utils import indented_list
-from ..utils import pretty_date, parse_date, splat
+from ..interval import filter_range, find_intervals, hrs_bw
+from ..tags import expand_explode, explode
+from ..utils import parse_date, pretty_date, splat
 
 flags.DEFINE_string(
     "running_events",
@@ -36,11 +36,9 @@ flags.DEFINE_float(
     "Minimum support, inclusive, necessary for a category to be included"
     " in the drill-down view",
     lower_bound=0,
-    upper_bound=1)
+    upper_bound=1,
+)
 
-
-
-# TODO: when multiple drill_types are supported use an enum flag.
 
 def _main(_argv):
     log.init()
@@ -51,19 +49,28 @@ def _main(_argv):
 
     df = filter_range(df, from_time, to_time)
 
-    log.debug("analyzing events in range {} - {}",
-              pretty_date(from_time), pretty_date(to_time))
+    log.debug(
+        "analyzing events in range {} - {}",
+        pretty_date(from_time),
+        pretty_date(to_time),
+    )
     uncovered, _ = find_intervals(df, from_time, to_time)
     uncovered_hrs = sum(map(splat(hrs_bw), uncovered))
     range_hrs = hrs_bw(from_time, to_time)
-    log.debug("{:.1f} hours in range {:.1f} uncovered ({:.1%} total)",
-              range_hrs, uncovered_hrs, uncovered_hrs / range_hrs)
+    log.debug(
+        "{:.1f} hours in range {:.1f} uncovered ({:.1%} total)",
+        uncovered_hrs,
+        range_hrs,
+        uncovered_hrs / range_hrs,
+    )
 
     ef = explode(df)
-    log.debug("found {} tags under current support count = {}",
-              len(ef.columns), None)
+    log.debug(
+        "found {} tags under current support count = {}", len(ef.columns), None
+    )
 
     context_loop(df, ef, flags.FLAGS.min_support, max_values=9)
+
 
 def get_context_df(df, ef, context):
     is_in_context = ef[context].prod(axis=1).astype(bool)
@@ -74,23 +81,31 @@ def get_context_df(df, ef, context):
     ef.drop(columns=sef[sef == 0].index, inplace=True)
     return df, ef
 
+
 def get_context_info(df, ef, cdf, cef):
     tot_hrs = df.duration_hours.sum()
     ctx_hrs = cdf.duration_hours.sum()
-    ctx_hrs = ('ctx hrs', '{:.1f} ({:.1%} of total)'.format(
-        ctx_hrs, ctx_hrs / tot_hrs))
+    ctx_hrs = (
+        "ctx hrs",
+        "{:.1f} ({:.1%} of total)".format(ctx_hrs, ctx_hrs / tot_hrs),
+    )
 
     tot_events = len(df)
     ctx_events = len(cdf)
-    ctx_events = ('ctx event count', '{:d} ({:.1%} of total)'.format(
-        ctx_events, ctx_events / tot_events))
+    ctx_events = (
+        "ctx event count",
+        "{:d} ({:.1%} of total)".format(ctx_events, ctx_events / tot_events),
+    )
 
     tot_tags = len(ef.columns)
     ctx_tags = len(cef.columns)
-    ctx_tags = ('ctx tag count', '{:d} ({:.1%} of total)'.format(
-        ctx_tags, ctx_tags / tot_tags))
+    ctx_tags = (
+        "ctx tag count",
+        "{:d} ({:.1%} of total)".format(ctx_tags, ctx_tags / tot_tags),
+    )
 
     return [ctx_hrs, ctx_events, ctx_tags]
+
 
 def rank_by_popular_tag(df, ef, min_support, max_values):
     # this could be done all-sparse, but pandas flips to dense
@@ -103,9 +118,7 @@ def rank_by_popular_tag(df, ef, min_support, max_values):
     ef = ef * np.arange(1, len(cols) + 1, dtype=int)
     ef = ef.min(axis=1)
     ef = ef.fillna(0).astype(int)
-    ef = ef.replace(
-        list(range(len(cols) + 1)),
-        ['<unk>'] + cols)
+    ef = ef.replace(list(range(len(cols) + 1)), ["<unk>"] + cols)
 
     # count hrs
     hrs_by_tag = df.duration_hours.groupby(ef).sum()
@@ -116,6 +129,7 @@ def rank_by_popular_tag(df, ef, min_support, max_values):
     percent_by_tag = percent_by_tag.iloc[:max_values]
 
     return percent_by_tag.index, percent_by_tag.values
+
 
 def context_loop(df, ef, min_support_show, max_values):
     """
@@ -130,14 +144,13 @@ def context_loop(df, ef, min_support_show, max_values):
         cdf, cef = get_context_df(df, ef, context)
         cef = expand_explode(cdf, cef)
         pairs = get_context_info(df, ef, cdf, cef)
-        print(indented_list(
-            title="context {}".format(context),
-            pairs=pairs))
+        print(indented_list(title="context {}".format(context), pairs=pairs))
         ranked_tags = []
         if not cdf.empty:
             ranked_tags, percentages = rank_by_popular_tag(
-                cdf, cef, min_support_show, max_values)
-            tagnames = map(splat('{} - {}'.format), enumerate(ranked_tags, 1))
+                cdf, cef, min_support_show, max_values
+            )
+            tagnames = map(splat("{} - {}".format), enumerate(ranked_tags, 1))
 
             # a popular-tag breakdown does the following:
             # for each item in the context, associate it with a single tag,
@@ -148,36 +161,39 @@ def context_loop(df, ef, min_support_show, max_values):
             # all categories are mutually exclusive in the sense of it being
             # their most popular tag, even if items from other tags might contain
             # selected tags that are simply not those items' most popular.
-            print(indented_list(
-                title="popular-tag breakdown of context",
-                pairs=zip(tagnames, map('{:.1%}'.format, percentages)),
-                indentation_level=1))
+            print(
+                indented_list(
+                    title="popular-tag breakdown of context",
+                    pairs=zip(tagnames, map("{:.1%}".format, percentages)),
+                    indentation_level=1,
+                )
+            )
 
         result = drill_get_next(1, len(ranked_tags))
-        if result == 'q':
+        if result == "q":
             return
-        if result == 'top':
+        if result == "top":
             context = []
             continue
-        if result == 'up':
+        if result == "up":
             context.pop()
             continue
         assert isinstance(result, int), result
         if ranked_tags[result - 1] not in ef.columns:
-            print('---> cannot break this down further')
+            print("---> cannot break this down further")
             continue
         context.append(ranked_tags[result - 1])
 
 
 def drill_get_next(lo, hi):
     while True:
-        print("drill [{}..{}/up/top/q]? ".format(lo, hi), end='')
+        print("drill [{}..{}/up/top/q]? ".format(lo, hi), end="")
         sys.stdout.flush()
         try:
             selection = input()
         except EOFError:
-            selection = 'q'
-        if selection in ['up', 'top', 'q']:
+            selection = "q"
+        if selection in ["up", "top", "q"]:
             return selection
         try:
             selection = int(selection)
@@ -185,6 +201,7 @@ def drill_get_next(lo, hi):
                 return selection
         except:
             pass
+
 
 if __name__ == "__main__":
     app.run(_main)

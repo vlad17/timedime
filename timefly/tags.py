@@ -4,6 +4,7 @@ Handling for the tags from calendar events.
 
 import pandas as pd
 
+
 def explode(df, min_support_count=None):
     """
     Given a dataframe with a tags column that contains an iterable of tags,
@@ -18,12 +19,15 @@ def explode(df, min_support_count=None):
     """
     # TODO: to avoid actually exploding memory, we could
     # do one tag at a time and explicitly construct the sparse vector.
+    # probably need to switch from pandas to a dict.
     exploded = df.tags.apply(lambda x: pd.Series({tag: True for tag in x}))
-    exploded = exploded.fillna(False).to_sparse(fill_value=0)
+    exploded = exploded.fillna(False)
     return exploded
+
 
 # TODO: support-based exploding for descriptions above
 # TODO: note, we probably want to re-explode at every context
+
 
 def expand_explode(cdf, cef):
     """
@@ -35,7 +39,7 @@ def expand_explode(cdf, cef):
     summaries = summary_gb[summary_gb > 1].index
     for summary in summaries:
         if not summary:
-            cef['<empty>'] = cdf.summary == ''
+            cef["<empty>"] = cdf.summary == ""
             continue
         cef[summary] = cdf.summary == summary
     return cef

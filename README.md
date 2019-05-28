@@ -1,6 +1,6 @@
-# timedime
+# timefly
 
-This module, `timedime`, helps you keep track of where you're spending your time.
+This module, `timefly`, helps you keep track of where you're spending your time.
 It's pretty specific to how I've set up my calendar. You'll likely not get much use
 out of this unless you use your calendar the same way.
 
@@ -17,38 +17,47 @@ and tags with spaces in them. Just don't do dumb shit like `[ [] i ] do Q][A`.
 
 ## Setup
 
-See `setup.py` for necessary python packages. Requires a linux x64 box.
+Only tested on linux. To install the enviornment:
 
 ```
-conda create -y -n timedime-env python=3.6
-source activate timedime-env
-pip install --no-cache-dir --editable .
+conda env create -f environment.yaml
 ```
+
+To activate the environment:
+
+```
+conda activate timefly-env
+```
+
+To update deps:
+
+```
+conda env export > environment.yaml
+```
+
+
 
 ## Scripts
 
-All scripts are available in `scripts/`, and should be run from the repo root in the `timedime-env`.
+All scripts are available in `scripts/`, and should be run from the repo root in the `timefly-env`.
 
 | script | purpose |
 | ------ | ------- |
-| `lint.sh` | invokes `pylint` with the appropriate flags for this repo |
-| `format.sh` | auto-format the entire `timedime` directory |
+| `format.sh` | auto-format the entire `timefly` directory |
 
 ## Example
 
-All mainfiles are documented. Run `python -m timedime.main.* --help` for any `*` for details.
+All mainfiles are documented. Run `python -m timefly.main.* --help` for any `*` for details.
 
 ```{bash}
-python -m timedime.main.ingest --help
-
-python -m timedime.main.ingest --begin 2018-12-01
+python -m timefly.main.ingest --begin 2018-12-01
 # outputs the following
 # 
-# [2018-12-25 18:13:26 PST timedime/main/ingest.py:169] fetching events overlapping with time range 2018-12-01 12:00AM PST - 2018-12-25 06:13PM PST
-# [2018-12-25 18:13:27 PST timedime/main/ingest.py:186] fetched   416 events
-# [2018-12-25 18:13:27 PST timedime/main/ingest.py:191] loaded    416 events in the time range 2018-12-01 12:00AM PST - 2018-12-25 06:13PM PST
-# [2018-12-25 18:13:27 PST timedime/main/ingest.py:197] missing start time 0.0%
-# [2018-12-25 18:13:27 PST timedime/main/ingest.py:198] missing end time   0.0%
+# [2018-12-25 18:13:26 PST timefly/main/ingest.py:169] fetching events overlapping with time range 2018-12-01 12:00AM PST - 2018-12-25 06:13PM PST
+# [2018-12-25 18:13:27 PST timefly/main/ingest.py:186] fetched   416 events
+# [2018-12-25 18:13:27 PST timefly/main/ingest.py:191] loaded    416 events in the time range 2018-12-01 12:00AM PST - 2018-12-25 06:13PM PST
+# [2018-12-25 18:13:27 PST timefly/main/ingest.py:197] missing start time 0.0%
+# [2018-12-25 18:13:27 PST timefly/main/ingest.py:198] missing end time   0.0%
 # DIAGNOSTICS
 # 
 # expanded range for overlapping events
@@ -75,13 +84,11 @@ python -m timedime.main.ingest --begin 2018-12-01
 #         health         :  247.0
 #         sisu           :  175.2
 #         fun            :   81.5
-# [2018-12-25 18:13:27 PST timedime/main/ingest.py:290] writing loaded data to ./data/new.pkl (WARNING: file will be overwritten)
-```
+# [2018-12-25 18:13:27 PST timefly/main/ingest.py:290] writing loaded data to ./data/new.pkl (WARNING: file will be overwritten)
 
-## Dev Info
+python -m timefly.main.merge
 
-To update deps:
+python -m timefly.main.digest --begin 2019-05-18
 
-```
- pip freeze | awk -F '==' "{print \"'\"\$1\">=\"\$2\"',\"}" | xclip -in -selection clipboard # then paste in setup.py
+# python -m timefly.main.drill --begin 2019-05-01
 ```
