@@ -108,9 +108,11 @@ python -m timefly.main.versus
 >  -0.9% other changes
 ```
 
-Here's an excerpt from my calendar. You can see me trying to sleep in on Saturday:
+Here's an excerpt from my calendar, which actually contains this data. You can see me trying to sleep in on Saturday:
 
 ![calendar](cal.png)
+
+_Doesn't tracking at this granularity make you insane?_ I suppose it depends on the person. I don't keep accurate records when I'm on `[vacation]`.
 
 # TODO
 
