@@ -32,7 +32,7 @@ flags.DEFINE_string(
 )
 flags.DEFINE_float(
     "min_support",
-    0.05,
+    0.025,
     "Minimum support, inclusive, necessary for a category to be included"
     " in the drill-down view",
     lower_bound=0,
@@ -114,7 +114,7 @@ def rank_by_popular_tag(df, ef, min_support, max_values):
     cols = list(ef.columns)
     cols.sort(key=lambda x: supports.at[x], reverse=True)
     ef = ef.loc[:, cols]
-    ef = ef.to_dense().replace(False, np.nan)
+    ef = ef.replace(False, np.nan)
     ef = ef * np.arange(1, len(cols) + 1, dtype=int)
     ef = ef.min(axis=1)
     ef = ef.fillna(0).astype(int)

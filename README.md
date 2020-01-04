@@ -59,53 +59,53 @@ python -m timefly.main.ingest --begin 2018-12-01
 # merge new data from ./data/new.pkl into ./data/running.pkl
 python -m timefly.main.merge
 
-# overview of my first half of May
+# overview of my work-related time spend over the last 4 months
 # use timefly.main.drill for an interactive version
-python -m timefly.main.digest --begin 2019-05-01 --min_support 0.01 --end 2019-05-15
+FOUR_MONTHS_AGO=$(date --date="$(date) -4 month" "+%Y-%m-%d")
+python -m timefly.main.digest --begin $FOUR_MONTHS_AGO --filter sisu
 
-> events in range 2019-05-01 12:00AM PDT - 2019-05-16 12:00AM PDT
->   7.5 hours of 360.0 uncovered ( 2.1% total)
-> found 124 tags in range
-> 40.8% health
->   68.9% sleep
->   22.0% try to sleep
->   4.7%  crossfit
->   3.0%  hygiene
->   1.4%  other
-> 25.1% [work]
->   42.9% datasci
->   14.8% meeting
->   8.8% code review
->   7.7%  answer questions
->   6.6%  recruiting
->   19.2% other
-> 9.6%  [redacted]
-> 4.5%  [redacted]
-> 4.1%  fun
->   36.7% tv
->   63.3% other
-> 3.6%  food
->   46.2% dinner
->   38.5% lunch
->   15.4% other
-> 3.2%  transport
-> 1.7%  reading
-> 7.4%  other
+ONE_MONTH_AGO=$(date --date="$(date) -1 month" "+%Y-%m-%d")
+TODAY=$(date "+%Y-%m-%d")
+# over those last 4 months, how did time spend fraction change from
+# the previous 3 to the most recent one?
+python -m timefly.main.versus --start1 $FOUR_MONTHS_AGO  --end1 $ONE_MONTH_AGO --start2 $ONE_MONTH_AGO --end2 $TODAY --filter sisu
+```
 
-# week-to-week changes (current vs previous week by default, window size adjustable)
-python -m timefly.main.versus
-> 94 events in range 2019-05-13 07:58PM PDT - 2019-05-20 07:58PM PDT
-> 130 events in range 2019-05-20 07:58PM PDT - 2019-05-27 07:58PM PDT
->  13.0 hours of 336.0 uncovered ( 3.9% total)
-> from prev to next, units are hours
-> -23.9% travel from 40.0 to  0.0
->  +7.9% reading from  1.0 to 13.5
->  +7.2% health from 60.0 to 68.0
->  +4.5% sisu from 29.0 to 34.5
->  +2.7% transport from  4.5 to  8.5
->  +1.3% chores from  0.0 to  2.0
->  +1.3% meeting from  0.0 to  2.0
->  -0.9% other changes
+Example outputs for digest (here, with `--min_support 0.5`)
+```
+events in range 2019-09-03 12:00AM PDT - 2020-01-03 07:45PM PST
+  30.5 hours of 2948.8 uncovered ( 1.0% total)
+only keeping 35.18% of rows matching sisu
+found 656 tags in range
+100.0% sisu
+  21.1% recruiting
+  19.3% software engineering
+    54.0% coding
+      54.8% machine learning
+      45.2% other
+    46.0% other
+  13.8% solutions engineering
+    64.6% [redacted]
+    35.4% other
+  13.7% machine learning
+  8.4%  meeting
+  23.8% other
+0.0%   other
+```
+Example outputs for versus (here, with `--min_support 0.5`)
+```
+only keeping 35.01% of rows matching sisu
+558 events in range 2019-09-04 12:00AM PDT - 2019-12-04 12:00AM PST
+123 events in range 2019-12-04 12:00AM PST - 2020-01-04 12:00AM PST
+[redacted]
+from prev to next, units are hours
+range 1 event hrs 644 range 2 event hrs 135
++30.8% [redacted] from 44.8 to 51.0
+-13.8% machine learning from 153.2 to 13.5
+-12.3% software engineering from 98.2 to  4.0
+ +5.8% [redacted] from  0.5 to  8.0
+ -5.5% solutions engineering from 35.5 to  0.0
+ +4.8% other changes
 ```
 
 Here's an excerpt from my calendar, which actually contains this data. You can see me trying to sleep in on Saturday:

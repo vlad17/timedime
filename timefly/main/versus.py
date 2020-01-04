@@ -11,33 +11,52 @@ from absl import app, flags
 from .. import log
 from ..format_utils import indented_list
 from ..interval import filter_range, find_intervals, hrs_bw
-from ..tags import explode
+from ..tags import explode, df_filter
 from ..utils import parse_date, pretty_date, splat
 
 
+flags.DEFINE_string(
+    "filter",
+    None,
+    "Filter down to events matching this string",
+)
 flags.DEFINE_string(
     "running_events",
     "./data/running.pkl",
     "path pointing to the existing store of data, " "this need not exist",
 )
-flags.DEFINE_integer(
-    "window_days",
-    7,
-    "number of days to look back"
+flags.DEFINE_string(
+    "start1",
+    None,
+    "YYYY-MM-DD specification for begin of first range"
 )
 flags.DEFINE_string(
-    "end",
-    "now",
-    "YYYY-MM-DD specification for begin of " + "fetch range (end of day)",
+    "end1",
+    None,
+    "YYYY-MM-DD specification for end of first range"
+)
+flags.DEFINE_string(
+    "start2",
+    None,
+    "YYYY-MM-DD specification for begin of second range"
+)
+flags.DEFINE_string(
+    "end2",
+    None,
+    "YYYY-MM-DD specification for end of second range"
 )
 flags.DEFINE_float(
     "min_support",
-    0.01,
+    0.025,
     "Minimum support, inclusive, necessary for a category to be included"
     " in the view",
     lower_bound=0,
     upper_bound=1,
 )
+flags.mark_flag_as_required("start1")
+flags.mark_flag_as_required("end1")
+flags.mark_flag_as_required("start2")
+flags.mark_flag_as_required("end2")
 
 def format_percent(x):
     return '{:3.1%}'.format(x)
@@ -50,29 +69,34 @@ def format_hours(x):
 
 def _main(_argv):
     df = pd.read_pickle(flags.FLAGS.running_events)
+    start1, end1, start2, end2 = (
+        parse_date(x, start_of_day=False) for x in
+        (flags.FLAGS.start1, flags.FLAGS.end1, flags.FLAGS.start2, flags.FLAGS.end2))
+    df = filter_range(df, start1, end2)
 
-    to_time = parse_date(flags.FLAGS.end, start_of_day=False)
-    mid_time = to_time - timedelta(days=flags.FLAGS.window_days)
-    start_time = mid_time - timedelta(days=flags.FLAGS.window_days)
+    ef = explode(df)
 
-    prev_df = filter_range(df, start_time, mid_time)
-    next_df = filter_range(df, mid_time, to_time)
+    df, ef = df_filter(df, ef, flags.FLAGS.filter, keep=False)
+
+    prev_df = filter_range(df, start1, end1)
+    next_df = filter_range(df, start2, end2)
 
     print(
         "{} events in range {} - {}".format(
             len(prev_df),
-        pretty_date(start_time),
-        pretty_date(mid_time),
+        pretty_date(start1),
+        pretty_date(end1),
     ))
     print(
         "{} events in range {} - {}".format(
             len(next_df),
-        pretty_date(mid_time),
-        pretty_date(to_time),
+        pretty_date(start2),
+        pretty_date(end2),
     ))
-    uncovered, _ = find_intervals(df, start_time, to_time)
+    uncovered, _ = find_intervals(df, start1, end1)
+    uncovered += find_intervals(df, start2, end2)[0]
     uncovered_hrs = sum(map(splat(hrs_bw), uncovered))
-    range_hrs = hrs_bw(start_time, to_time)
+    range_hrs = hrs_bw(start1, end1) + hrs_bw(start2, end2)
 
     ndigits = len(str(int(range_hrs)))
     global HOURS_WIDTH
@@ -102,6 +126,9 @@ def _main(_argv):
     ptot = prev_df.duration_hours.sum()
     ntot = next_df.duration_hours.sum()
 
+    print('range 1 event hrs {:.0f} range 2 event hrs {:.0f}'.format(
+        ptot, ntot))
+
     # Yes, this can be made much more efficient by caching 'x'
     # and then incrementally updating it instead of removing rows
     # associated with tags and restarting
@@ -119,8 +146,6 @@ def _main(_argv):
         s.name='tag'
         singles = jdf.drop('tags', axis=1).join(s)
 
-
-
         sprev = singles[singles.index.isin(prev_df.index)]
         snext = singles[singles.index.isin(next_df.index)]
 
@@ -132,6 +157,10 @@ def _main(_argv):
 
         x = x.reset_index()
         x["abs"] = np.abs(x["duration_hours"])
+
+        if not len(x):
+            break
+
         tag, hrs = x.sort_values('abs', ascending=False).iloc[0][["tag", "duration_hours"]]
         tot += hrs
         ptag = pef[tag]

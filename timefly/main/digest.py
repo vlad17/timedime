@@ -10,7 +10,7 @@ from absl import app, flags
 from .. import log
 from ..format_utils import indented_list
 from ..interval import filter_range, find_intervals, hrs_bw
-from ..tags import explode
+from ..tags import explode, df_filter
 from ..utils import parse_date, pretty_date, splat
 
 flags.DEFINE_string(
@@ -28,9 +28,15 @@ flags.DEFINE_string(
     "now",
     "YYYY-MM-DD specification for begin of " + "fetch range (end of day)",
 )
+flags.DEFINE_string(
+    "filter",
+    None,
+    "Filter down to events matching this string",
+)
+
 flags.DEFINE_float(
     "min_support",
-    0.05,
+    0.025,
     "Minimum support, inclusive, necessary for a category to be included"
     " in the drill-down view",
     lower_bound=0,
@@ -75,6 +81,10 @@ def _main(_argv):
           "total)")
 
     ef = explode(df)
+
+
+    df, ef = df_filter(df, ef, flags.FLAGS.filter)
+
     print(
         "found {} tags in range".format(len(ef.columns))
     )
@@ -142,7 +152,7 @@ def rank_by_popular_tag(df, ef, min_support, max_values):
     cols = list(ef.columns)
     cols.sort(key=lambda x: supports.at[x], reverse=True)
     ef = ef.loc[:, cols]
-    ef = ef.to_dense().replace(False, np.nan)
+    ef = ef.replace(False, np.nan)
     ef = ef * np.arange(1, len(cols) + 1, dtype=int)
     ef = ef.min(axis=1)
     ef = ef.fillna(0).astype(int)
